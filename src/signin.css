@@ -1,0 +1,5 @@
+/* same idea as Bootstrap's sign-in example */
+.form-signin {
+  max-width: 330px;
+  padding: 1rem;
+}
