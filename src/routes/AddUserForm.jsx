@@ -8,7 +8,7 @@ export default function AddUserForm() {
     <Fragment>
       <div className="d-flex flex-column min-vh-100">
         <NavigationBar />
-        <main className="flex-grow-1">
+        <main className="flex-grow-1 m-3">
           <h1 className="text-center m-3 p-3"> Add User Details </h1>
           <UserForm />
         </main>

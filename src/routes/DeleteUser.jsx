@@ -7,7 +7,7 @@ export default function DeleteUser() {
     <Fragment>
       <div className="d-flex flex-column min-vh-100">
         <NavigationBar />
-        <main className="flex-grow-1">
+        <main className="flex-grow-1 m-3">
           <h1 className="text-center m-3 p-3"> Delete User </h1>
         </main>
         <Footer
