@@ -1,16 +1,19 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-// import "./index.css";
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Navigate } from "react-router";
 import { RouterProvider } from "react-router/dom";
 import "bootstrap/dist/css/bootstrap.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
+import { BsFacebook, BsInstagram } from "react-icons/bs";
 import App from "./App.jsx";
+import NavigationBar from "./components/NavigationBar";
+import Footer from "./components/Footer";
 import SignIn from "./routes/SignIn";
 import ViewLogs from "./routes/ViewLogs.jsx";
 import AddUserForm from "./routes/AddUserForm.jsx";
 import UpdateUserForm from "./routes/UpdateUserForm.jsx";
-import DeleteUser from "./routes/DeleteUser.jsx";
+import RolesAccessPoints from "./routes/RolesAccessPoints.jsx";
+import UserAdminConsole from "./components/UserAdminConsole.jsx";
 
 const router = createBrowserRouter([
   {
@@ -19,27 +22,68 @@ const router = createBrowserRouter([
   },
   {
     path: "/dashboard",
-    element: <p> Hi How are we?</p>,
+    element: <App />,
   },
   {
     path: "/logs",
     element: <ViewLogs />,
   },
   {
-    path: "/home",
-    element: <App />,
+    path: "/users",
+    element: (
+      <div className="d-flex flex-column min-vh-100">
+        <NavigationBar />
+        <main className="flex-grow-1 m-3">
+          <UserAdminConsole
+            title="Manage users"
+            description="Review access records, update details, and toggle account activity."
+          />
+        </main>
+        <Footer
+          companyName="Smart Access Control"
+          socialLinks={[
+            {
+              label: "Instagram",
+              url: "https://instagram.com",
+              icon: BsInstagram,
+            },
+            {
+              label: "Facebook",
+              url: "https://facebook.com",
+              icon: BsFacebook,
+            },
+          ]}
+        />
+      </div>
+    ),
   },
   {
-    path: "/add",
+    path: "/users/new",
     element: <AddUserForm />,
   },
   {
-    path: "/update",
+    path: "/users/:userId/edit",
     element: <UpdateUserForm />,
   },
   {
+    path: "/roles",
+    element: <RolesAccessPoints />,
+  },
+  {
+    path: "/home",
+    element: <Navigate to="/dashboard" replace />,
+  },
+  {
+    path: "/add",
+    element: <Navigate to="/users/new" replace />,
+  },
+  {
+    path: "/update",
+    element: <Navigate to="/users" replace />,
+  },
+  {
     path: "/delete",
-    element: <DeleteUser />,
+    element: <Navigate to="/users" replace />,
   },
 ]);
 
