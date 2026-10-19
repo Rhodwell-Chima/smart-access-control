@@ -1,202 +1,219 @@
-import { useState } from "react";
-import "./App.css";
 import { Link } from "react-router";
+import { useEffect, useState } from "react";
 import NavigationBar from "./components/NavigationBar";
 import AccessLogTable from "./components/AccessLogTable";
-import FormSection from "./components/UserForm";
-import UserForm from "./components/UserForm";
+import Footer from "./components/Footer";
+import { BsFacebook, BsInstagram } from "react-icons/bs";
+import { adminApi } from "./utils/api";
+import "./App.css";
 
 function App() {
-  // const [count, setCount] = useState(0);
-  const accessLogs = [
+  const [metrics, setMetrics] = useState(null);
+  const [recentLogs, setRecentLogs] = useState([]);
+  const [error, setError] = useState("");
+  const [backendStatus, setBackendStatus] = useState({ ok: false, checking: true });
+
+  useEffect(() => {
+    let active = true;
+
+    const loadDashboard = async () => {
+      try {
+        const [health, metricsResponse, logsResponse] = await Promise.all([
+          adminApi.checkBackendHealth(),
+          adminApi.getMetricsSummary(),
+          adminApi.searchLogs({ page: 1, page_size: 6 }),
+        ]);
+
+        if (!active) return;
+
+        setBackendStatus({
+          ok: health.ok,
+          checking: false,
+          message: health.ok ? "Backend connected" : health.error,
+        });
+
+        if (health.ok) {
+          setMetrics(metricsResponse);
+          setRecentLogs(logsResponse.logs ?? []);
+          setError("");
+        } else {
+          setError("The backend is currently unavailable. Please check the API server.");
+        }
+      } catch (requestError) {
+        if (active) {
+          setBackendStatus({ ok: false, checking: false, message: "Connection unavailable" });
+          setError(requestError?.response?.data?.error ?? "Unable to load dashboard data.");
+        }
+      }
+    };
+
+    loadDashboard();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const totalUsers = metrics?.users?.total ?? 0;
+  const activeUsers = metrics?.users?.active ?? 0;
+  const totalCards = metrics?.cards?.total ?? 0;
+  const activeCards = metrics?.cards?.active ?? 0;
+  const totalRoles = metrics?.infrastructure?.roles ?? 0;
+  const totalAccessPoints = metrics?.infrastructure?.access_points ?? 0;
+  const todayScans = metrics?.today?.total_scans ?? 0;
+  const denialRate = metrics?.today?.denial_rate_pct ?? 0;
+
+  const summaryCards = [
     {
-      id: 1,
-      scanned_at: "2024-01-15T07:02:11",
-      first_name: "John",
-      last_name: "Banda",
-      uid: "1A 7C 78 30",
-      role: "ADMIN",
-      result: "GRANTED",
+      label: "Users",
+      value: totalUsers,
+      meta: `${activeUsers} active`,
+      tone: "primary",
     },
     {
-      id: 2,
-      scanned_at: "2024-01-15T07:45:02",
-      first_name: "Mary",
-      last_name: "Phiri",
-      uid: "CC CC A3 16",
-      role: "USER",
-      result: "GRANTED",
+      label: "Cards",
+      value: totalCards,
+      meta: `${activeCards} active`,
+      tone: "success",
     },
     {
-      id: 3,
-      scanned_at: "2024-01-15T07:58:44",
-      first_name: null,
-      last_name: null,
-      uid: "00 00 00 00",
-      role: null,
-      result: "UNAUTHORIZED",
+      label: "Roles",
+      value: totalRoles,
+      meta: "Policies configured",
+      tone: "info",
     },
     {
-      id: 4,
-      scanned_at: "2024-01-15T08:10:30",
-      first_name: "Chipo",
-      last_name: "Mwale",
-      uid: "3B 9D 45 12",
-      role: "USER",
-      result: "GRANTED",
+      label: "Access points",
+      value: totalAccessPoints,
+      meta: "Live entry nodes",
+      tone: "warning",
+    },
+  ];
+
+  const overviewCards = [
+    {
+      label: "Today's scans",
+      value: todayScans,
+      helper: "Access events processed",
     },
     {
-      id: 5,
-      scanned_at: "2024-01-15T08:22:05",
-      first_name: null,
-      last_name: null,
-      uid: "FF 4B 21 09",
-      role: null,
-      result: "BLACKLISTED",
+      label: "Denial rate",
+      value: `${denialRate}%`,
+      helper: "Unauthorized attempts",
     },
     {
-      id: 6,
-      scanned_at: "2024-01-15T08:35:18",
-      first_name: "Tendai",
-      last_name: "Moyo",
-      uid: "7F 2A 91 CC",
-      role: "GUEST",
-      result: "GRANTED",
-    },
-    {
-      id: 7,
-      scanned_at: "2024-01-15T09:01:33",
-      first_name: "Mary",
-      last_name: "Phiri",
-      uid: "CC CC A3 16",
-      role: "USER",
-      result: "OUTSIDE TIME WINDOW",
-    },
-    {
-      id: 8,
-      scanned_at: "2024-01-15T09:14:55",
-      first_name: null,
-      last_name: null,
-      uid: "AB 3C 77 F1",
-      role: null,
-      result: "UNAUTHORIZED",
-    },
-    {
-      id: 9,
-      scanned_at: "2024-01-15T09:30:02",
-      first_name: "John",
-      last_name: "Banda",
-      uid: "1A 7C 78 30",
-      role: "ADMIN",
-      result: "GRANTED",
-    },
-    {
-      id: 10,
-      scanned_at: "2024-01-15T09:47:19",
-      first_name: "Chipo",
-      last_name: "Mwale",
-      uid: "3B 9D 45 12",
-      role: "USER",
-      result: "GRANTED",
-    },
-    {
-      id: 11,
-      scanned_at: "2024-01-15T10:05:44",
-      first_name: "Tendai",
-      last_name: "Moyo",
-      uid: "7F 2A 91 CC",
-      role: "GUEST",
-      result: "OUTSIDE TIME WINDOW",
-    },
-    {
-      id: 12,
-      scanned_at: "2024-01-15T10:22:31",
-      first_name: null,
-      last_name: null,
-      uid: "FF 4B 21 09",
-      role: null,
-      result: "BLACKLISTED",
-    },
-    {
-      id: 13,
-      scanned_at: "2024-01-15T10:38:09",
-      first_name: "Mary",
-      last_name: "Phiri",
-      uid: "CC CC A3 16",
-      role: "USER",
-      result: "GRANTED",
-    },
-    {
-      id: 14,
-      scanned_at: "2024-01-15T10:55:27",
-      first_name: null,
-      last_name: null,
-      uid: "12 DE 88 4A",
-      role: null,
-      result: "UNAUTHORIZED",
-    },
-    {
-      id: 15,
-      scanned_at: "2024-01-15T11:10:14",
-      first_name: "John",
-      last_name: "Banda",
-      uid: "1A 7C 78 30",
-      role: "ADMIN",
-      result: "GRANTED",
-    },
-    {
-      id: 16,
-      scanned_at: "2024-01-15T11:28:50",
-      first_name: "Chipo",
-      last_name: "Mwale",
-      uid: "3B 9D 45 12",
-      role: "USER",
-      result: "GRANTED",
-    },
-    {
-      id: 17,
-      scanned_at: "2024-01-15T11:45:03",
-      first_name: "Tendai",
-      last_name: "Moyo",
-      uid: "7F 2A 91 CC",
-      role: "GUEST",
-      result: "GRANTED",
-    },
-    {
-      id: 18,
-      scanned_at: "2024-01-15T12:02:38",
-      first_name: null,
-      last_name: null,
-      uid: "00 00 00 00",
-      role: null,
-      result: "UNAUTHORIZED",
-    },
-    {
-      id: 19,
-      scanned_at: "2024-01-15T12:19:22",
-      first_name: "Mary",
-      last_name: "Phiri",
-      uid: "CC CC A3 16",
-      role: "USER",
-      result: "GRANTED",
-    },
-    {
-      id: 20,
-      scanned_at: "2024-01-15T12:35:47",
-      first_name: null,
-      last_name: null,
-      uid: "FF 4B 21 09",
-      role: null,
-      result: "BLACKLISTED",
+      label: "Platform status",
+      value: backendStatus.checking ? "Checking" : backendStatus.ok ? "Connected" : "Offline",
+      helper: backendStatus.message ?? "Waiting for backend",
     },
   ];
 
   return (
     <>
       <NavigationBar />
-      <h1>Access Logs</h1>
-      <UserForm />
-      <AccessLogTable logs={accessLogs} />
+      <main className="dashboard-shell">
+        <section className="dashboard-hero card-panel">
+          <div className="dashboard-hero__content">
+            <p className="eyebrow">Smart access control</p>
+            <h1>Operations dashboard</h1>
+            <p className="dashboard-lead">
+              Monitor security posture, access permissions, and building activity from one control
+              panel.
+            </p>
+
+            <div className="status-row">
+              <span className={`status-pill ${backendStatus.ok ? "status-pill--ok" : "status-pill--warn"}`}>
+                {backendStatus.checking ? "Checking backend…" : backendStatus.ok ? "System online" : "Backend offline"}
+              </span>
+              {backendStatus.message ? <span className="status-note">{backendStatus.message}</span> : null}
+            </div>
+
+            {error ? <div className="alert alert-warning dashboard-alert">{error}</div> : null}
+
+            <div className="hero-actions">
+              <Link className="btn btn-light" to="/users/new">
+                Add user
+              </Link>
+              <Link className="btn btn-outline-light" to="/logs">
+                View logs
+              </Link>
+            </div>
+          </div>
+
+          <div className="summary-grid">
+            {summaryCards.map((item) => (
+              <article key={item.label} className={`summary-card summary-card--${item.tone}`}>
+                <span className="summary-card__label">{item.label}</span>
+                <strong className="summary-card__value">{item.value}</strong>
+                <small className="summary-card__meta">{item.meta}</small>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="overview-grid">
+          {overviewCards.map((card) => (
+            <article key={card.label} className="overview-card card-panel">
+              <span className="overview-card__label">{card.label}</span>
+              <strong>{card.value}</strong>
+              <small>{card.helper}</small>
+            </article>
+          ))}
+        </section>
+
+        <section className="dashboard-grid">
+          <article className="panel-card panel-card--wide card-panel">
+            <div className="panel-card__header">
+              <div>
+                <p className="panel-kicker">Recent activity</p>
+                <h2>Latest access logs</h2>
+              </div>
+              <Link className="panel-link" to="/logs">
+                Open log search
+              </Link>
+            </div>
+            <AccessLogTable logs={recentLogs} />
+          </article>
+
+          <aside className="panel-card card-panel">
+            <div className="panel-card__header panel-card__header--stacked">
+              <div>
+                <p className="panel-kicker">Admin tools</p>
+                <h2>Core workflows</h2>
+              </div>
+            </div>
+            <div className="shortcut-list">
+              <Link className="shortcut-card" to="/users/new">
+                <span>Create user</span>
+                <p>Register a user and assign a card to a policy.</p>
+              </Link>
+              <Link className="shortcut-card" to="/users">
+                <span>Manage users</span>
+                <p>Update identity details and toggle user access.</p>
+              </Link>
+              <Link className="shortcut-card" to="/roles">
+                <span>Roles & access points</span>
+                <p>Review access coverage and permission mapping.</p>
+              </Link>
+            </div>
+          </aside>
+        </section>
+      </main>
+      <Footer
+        companyName="Smart Access Control"
+        socialLinks={[
+          {
+            label: "Instagram",
+            url: "https://instagram.com",
+            icon: BsInstagram,
+          },
+          {
+            label: "Facebook",
+            url: "https://facebook.com",
+            icon: BsFacebook,
+          },
+        ]}
+      />
     </>
   );
 }
