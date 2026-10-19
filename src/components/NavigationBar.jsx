@@ -18,23 +18,22 @@ export default function NavigationBar() {
         >
           <span className="navbar-toggler-icon"></span>
         </button>
-        <div
-          className="collapse navbar-collapse justify-content-end"
-          id="navbarNavAltMarkup"
-        >
+        <div className="collapse navbar-collapse justify-content-end" id="navbarNavAltMarkup">
           <div className="navbar-nav">
-            <Link className="nav-link" aria-current="page" to="/logs">
-              View
+            <Link className="nav-link" to="/dashboard">
+              Dashboard
             </Link>
-
-            <Link className="nav-link" aria-current="page" to="/add">
-              Add
+            <Link className="nav-link" to="/logs">
+              Logs
             </Link>
-            <Link className="nav-link" to="/update">
-              Update
+            <Link className="nav-link" to="/users">
+              Users
             </Link>
-            <Link className="nav-link" to="/delete">
-              Delete
+            <Link className="nav-link" to="/users/new">
+              Add user
+            </Link>
+            <Link className="nav-link" to="/roles">
+              Roles
             </Link>
           </div>
         </div>
