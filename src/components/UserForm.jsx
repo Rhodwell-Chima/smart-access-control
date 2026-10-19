@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import FormInput from "./FormInput";
 import UIDInput from "./UIDInput";
 import SelectInput from "./SelectInput";
+import { adminApi } from "../utils/api";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -94,6 +95,27 @@ export default function UserForm({ onSubmit, onCancel, wsUrl = ESP32_WS_URL }) {
   const [form, setForm] = useState(INITIAL_STATE);
   const [errors, setErrors] = useState({});
   const [scanState, setScanState] = useState("idle");
+  const [roleOptions, setRoleOptions] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadRoles = async () => {
+      try {
+        const response = await adminApi.getRoles({ pageSize: 100 });
+        if (!active) return;
+        setRoleOptions(response.roles ?? []);
+      } catch {
+        if (active) setRoleOptions([]);
+      }
+    };
+
+    loadRoles();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const wsRef = useRef(null);
 
@@ -185,7 +207,6 @@ export default function UserForm({ onSubmit, onCancel, wsUrl = ESP32_WS_URL }) {
       "email",
       "uid",
       "role",
-      "status",
     ];
     const newErrors = {};
     required.forEach((key) => {
@@ -197,8 +218,18 @@ export default function UserForm({ onSubmit, onCancel, wsUrl = ESP32_WS_URL }) {
 
   const handleSubmit = () => {
     if (!validate()) return;
+
+    const roleIds = form.role ? [Number(form.role)] : [];
+
     onSubmit
-      ? onSubmit(form)
+      ? onSubmit({
+          firstName: form.firstName,
+          lastName: form.lastName,
+          email: form.email,
+          uid: form.uid,
+          role: form.role,
+          role_ids: roleIds,
+        })
       : alert("Form submitted:\n" + JSON.stringify(form, null, 2));
   };
 
@@ -216,12 +247,17 @@ export default function UserForm({ onSubmit, onCancel, wsUrl = ESP32_WS_URL }) {
 
   return (
     <div className="container py-4">
-      <div className="card">
+      <div className="card-panel admin-card user-form-card">
         <div className="card-body">
-          <h5 className="card-title mb-1">User details</h5>
-          <p className="text-secondary small mb-4">
-            Fill in the fields below to register a new user.
-          </p>
+          <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <div>
+              <h5 className="card-title mb-1">User details</h5>
+              <p className="text-secondary small mb-0">
+                Fill in the fields below to register a new user.
+              </p>
+            </div>
+            <span className="chip chip--muted">New account</span>
+          </div>
 
           {/* ── Personal info ── */}
           <p className="text-uppercase text-secondary small fw-semibold mb-3">
@@ -299,12 +335,21 @@ export default function UserForm({ onSubmit, onCancel, wsUrl = ESP32_WS_URL }) {
               onChange={handleChange}
               error={errors.role}
               placeholder="Select a role…"
-              options={[
-                { value: "ADMIN", label: "Admin" },
-                { value: "USER", label: "User" },
-                { value: "GUEST", label: "Guest" },
-              ]}
-              renderExtra={() => <Badge meta={ROLE_META[form.role]} />}
+              options={
+                roleOptions.length
+                  ? roleOptions.map((role) => ({
+                      value: String(role.id),
+                      label: role.name,
+                    }))
+                  : [
+                      { value: "", label: "No roles available" },
+                    ]
+              }
+              renderExtra={() =>
+                form.role && roleOptions.length ? (
+                  <Badge meta={{ label: roleOptions.find((role) => String(role.id) === form.role)?.name ?? "Role", badgeClass: "text-bg-primary" }} />
+                ) : null
+              }
             />
 
             <SelectInput
