@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SignInForm from "../components/auth/SignInForm";
 import ThemeToggle from "../components/theme/ThemeToggle";
 import { useNavigate } from "react-router";
 import usePersistedTheme from "../utils/usePersistedTheme.js";
+import { adminApi } from "../utils/api";
+import { getAuthSession, persistAuthSession } from "../utils/auth";
 import "../signin.css";
 
 export default function SignIn() {
@@ -11,11 +13,30 @@ export default function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    alert(`Signing in as ${email}`);
-    navigate("/home", { replace: true });
+  useEffect(() => {
+    const storedSession = getAuthSession();
+    if (storedSession?.authenticated) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [navigate]);
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const result = await adminApi.login({ email, password });
+      persistAuthSession(result.user ?? { email }, rememberMe);
+      navigate("/dashboard", { replace: true });
+    } catch (requestError) {
+      setError(requestError?.message ?? "Unable to sign in at this time.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleThemeSelect = (value) => {
@@ -24,7 +45,7 @@ export default function SignIn() {
   };
 
   return (
-    <div className="d-flex align-items-center py-4 bg-body-tertiary min-vh-100">
+    <div className="login-page">
       <ThemeToggle theme={theme} onSelectTheme={handleThemeSelect} />
 
       <SignInForm
@@ -35,6 +56,8 @@ export default function SignIn() {
         onChangePassword={setPassword}
         onChangeRememberMe={setRememberMe}
         onSubmit={handleSubmit}
+        loading={loading}
+        error={error}
       />
     </div>
   );
