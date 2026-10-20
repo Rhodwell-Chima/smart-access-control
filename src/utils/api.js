@@ -83,6 +83,35 @@ export const adminApi = {
     }
   },
 
+  async login({ email, password } = {}) {
+    const normalizedEmail = String(email ?? "").trim();
+    const normalizedPassword = String(password ?? "").trim();
+
+    if (!normalizedEmail || !normalizedPassword) {
+      throw new Error("Email and password are required.");
+    }
+
+    if (normalizedEmail.toLowerCase() !== "regaclipbeats@gmail.com") {
+      throw new Error("Unauthorized access.");
+    }
+
+    if (normalizedPassword !== "12345678") {
+      throw new Error("Invalid email or password.");
+    }
+
+    return {
+      ok: true,
+      demo: true,
+      user: {
+        email: normalizedEmail,
+        name: "Regclip Beats",
+        role: "Administrator",
+      },
+      token: "hardcoded-admin-session",
+      data: {},
+    };
+  },
+
   async getSystemHealth() {
     const response = await api.get("/dashboard/health/");
     return response.data ?? {};
