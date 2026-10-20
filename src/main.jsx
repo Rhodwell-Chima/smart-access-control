@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { createBrowserRouter, Navigate } from "react-router";
+import { createBrowserRouter, Navigate, redirect } from "react-router";
 import { RouterProvider } from "react-router/dom";
 import "bootstrap/dist/css/bootstrap.css";
 import "bootstrap/dist/js/bootstrap.bundle.min.js";
@@ -14,6 +14,16 @@ import AddUserForm from "./routes/AddUserForm.jsx";
 import UpdateUserForm from "./routes/UpdateUserForm.jsx";
 import RolesAccessPoints from "./routes/RolesAccessPoints.jsx";
 import UserAdminConsole from "./components/UserAdminConsole.jsx";
+import { isAuthenticated } from "./utils/auth";
+
+const requireAuth = ({ request }) => {
+  if (!isAuthenticated()) {
+    const redirectUrl = new URL("/", window.location.origin);
+    throw redirect(redirectUrl.pathname + redirectUrl.search);
+  }
+
+  return null;
+};
 
 const router = createBrowserRouter([
   {
@@ -23,10 +33,12 @@ const router = createBrowserRouter([
   {
     path: "/dashboard",
     element: <App />,
+    loader: requireAuth,
   },
   {
     path: "/logs",
     element: <ViewLogs />,
+    loader: requireAuth,
   },
   {
     path: "/users",
@@ -56,34 +68,42 @@ const router = createBrowserRouter([
         />
       </div>
     ),
+    loader: requireAuth,
   },
   {
     path: "/users/new",
     element: <AddUserForm />,
+    loader: requireAuth,
   },
   {
     path: "/users/:userId/edit",
     element: <UpdateUserForm />,
+    loader: requireAuth,
   },
   {
     path: "/roles",
     element: <RolesAccessPoints />,
+    loader: requireAuth,
   },
   {
     path: "/home",
     element: <Navigate to="/dashboard" replace />,
+    loader: requireAuth,
   },
   {
     path: "/add",
     element: <Navigate to="/users/new" replace />,
+    loader: requireAuth,
   },
   {
     path: "/update",
     element: <Navigate to="/users" replace />,
+    loader: requireAuth,
   },
   {
     path: "/delete",
     element: <Navigate to="/users" replace />,
+    loader: requireAuth,
   },
 ]);
 
