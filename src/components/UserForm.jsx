@@ -1,22 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import FormInput from "./FormInput";
-import UIDInput from "./UIDInput";
 import SelectInput from "./SelectInput";
 import { adminApi } from "../utils/api";
-
-// ─── Constants ───────────────────────────────────────────────────────────────
-
-const ROLE_META = {
-  ADMIN: { label: "Admin", badgeClass: "text-bg-primary" },
-  USER: { label: "User", badgeClass: "text-bg-info" },
-  GUEST: { label: "Guest", badgeClass: "text-bg-secondary" },
-};
-
-const STATUS_META = {
-  AUTHORISED: { label: "Authorised", badgeClass: "text-bg-success" },
-  UNAUTHORIZED: { label: "Unauthorized", badgeClass: "text-bg-warning" },
-  BLACKLISTED: { label: "Blacklisted", badgeClass: "text-bg-danger" },
-};
 
 const INITIAL_STATE = {
   firstName: "",
@@ -24,77 +9,11 @@ const INITIAL_STATE = {
   email: "",
   uid: "",
   role: "",
-  status: "",
 };
 
-// Change this to your ESP32's IP address / hostname
-// e.g. "ws://192.168.1.42/ws"  or  "ws://esp32.local/ws"
-const ESP32_WS_URL = "ws://192.168.1.42/ws";
-
-// ─── Scan states ─────────────────────────────────────────────────────────────
-//   idle        → no scanning, manual input allowed
-//   connecting  → WebSocket is opening
-//   scanning    → connected, waiting for card tap
-//   success     → card read, UID filled in
-//   error       → connection failed or closed unexpectedly
-
-// ─── Badge component ─────────────────────────────────────────────────────────
-
-const Badge = ({ meta }) => {
-  if (!meta) return null;
-  return (
-    <span className={`badge rounded-pill mt-2 ${meta.badgeClass}`}>
-      {meta.label}
-    </span>
-  );
-};
-
-// ─── RFID Scan Button + status strip ─────────────────────────────────────────
-
-const ScanStates = {
-  idle: {
-    btnClass: "btn btn-outline-secondary",
-    btnLabel: "Scan card",
-    icon: "📡",
-    alertClass: null,
-    alertMsg: null,
-  },
-  connecting: {
-    btnClass: "btn btn-outline-secondary disabled",
-    btnLabel: "Connecting…",
-    icon: "⏳",
-    alertClass: "alert alert-info py-2 small mb-0",
-    alertMsg: "Connecting to reader…",
-  },
-  scanning: {
-    btnClass: "btn btn-warning",
-    btnLabel: "Cancel scan",
-    icon: "🔄",
-    alertClass: "alert alert-warning py-2 small mb-0",
-    alertMsg: "Tap your RFID card on the reader now.",
-  },
-  success: {
-    btnClass: "btn btn-outline-success",
-    btnLabel: "Scan again",
-    icon: "✅",
-    alertClass: "alert alert-success py-2 small mb-0",
-    alertMsg: "Card detected — UID filled in.",
-  },
-  error: {
-    btnClass: "btn btn-outline-danger",
-    btnLabel: "Retry scan",
-    icon: "⚠️",
-    alertClass: "alert alert-danger py-2 small mb-0",
-    alertMsg: "Could not connect to reader. Check ESP32 is online.",
-  },
-};
-
-// ─── Main component ───────────────────────────────────────────────────────────
-
-export default function UserForm({ onSubmit, onCancel, wsUrl = ESP32_WS_URL }) {
+export default function UserForm({ onSubmit, onCancel }) {
   const [form, setForm] = useState(INITIAL_STATE);
   const [errors, setErrors] = useState({});
-  const [scanState, setScanState] = useState("idle");
   const [roleOptions, setRoleOptions] = useState([]);
 
   useEffect(() => {
@@ -104,7 +23,7 @@ export default function UserForm({ onSubmit, onCancel, wsUrl = ESP32_WS_URL }) {
       try {
         const response = await adminApi.getRoles({ pageSize: 100 });
         if (!active) return;
-        setRoleOptions(response.roles ?? []);
+        setRoleOptions(Array.isArray(response.roles) ? response.roles : []);
       } catch {
         if (active) setRoleOptions([]);
       }
@@ -117,133 +36,53 @@ export default function UserForm({ onSubmit, onCancel, wsUrl = ESP32_WS_URL }) {
     };
   }, []);
 
-  const wsRef = useRef(null);
-
-  // Tear down WebSocket cleanly
-  const closeWs = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.onopen = null;
-      wsRef.current.onmessage = null;
-      wsRef.current.onerror = null;
-      wsRef.current.onclose = null;
-      wsRef.current.close();
-      wsRef.current = null;
+  const handleChange = (event) => {
+    const { id, value } = event.target;
+    setForm((previous) => ({ ...previous, [id]: value }));
+    if (errors[id]) {
+      setErrors((previous) => ({ ...previous, [id]: false }));
     }
-  }, []);
-
-  // Cleanup on unmount
-  useEffect(() => () => closeWs(), [closeWs]);
-
-  // ── Scan logic ──────────────────────────────────────────────────────────────
-
-  const startScan = useCallback(() => {
-    setScanState("connecting");
-    closeWs();
-
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      setScanState("scanning");
-      // Tell the ESP32 to start listening for a card tap
-      ws.send(JSON.stringify({ command: "scan" }));
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        // Expected payload from ESP32: { "uid": "A1B2C3D4" }
-        if (data.uid) {
-          setForm((prev) => ({ ...prev, uid: data.uid }));
-          setErrors((prev) => ({ ...prev, uid: false }));
-          setScanState("success");
-          closeWs();
-        }
-      } catch {
-        // Non-JSON frames (e.g. debug logs) — ignore
-      }
-    };
-
-    ws.onerror = () => {
-      setScanState("error");
-      closeWs();
-    };
-
-    ws.onclose = () => {
-      // Only treat as error if we were still waiting
-      setScanState((prev) =>
-        prev === "scanning" || prev === "connecting" ? "error" : prev,
-      );
-    };
-  }, [wsUrl, closeWs]);
-
-  const cancelScan = useCallback(() => {
-    closeWs();
-    setScanState("idle");
-  }, [closeWs]);
-
-  const handleScanButton = () => {
-    if (scanState === "scanning") {
-      cancelScan();
-    } else {
-      startScan();
-    }
-  };
-
-  // ── Form logic ──────────────────────────────────────────────────────────────
-
-  const handleChange = (e) => {
-    const { id, value } = e.target;
-    setForm((prev) => ({ ...prev, [id]: value }));
-    if (errors[id]) setErrors((prev) => ({ ...prev, [id]: false }));
-    // If user types in UID manually, reset scan state to idle
-    if (id === "uid") setScanState("idle");
   };
 
   const validate = () => {
-    const required = [
-      "firstName",
-      "lastName",
-      "email",
-      "uid",
-      "role",
-    ];
-    const newErrors = {};
+    const required = ["firstName", "lastName", "email", "uid", "role"];
+    const nextErrors = {};
+
     required.forEach((key) => {
-      if (!form[key]) newErrors[key] = true;
+      if (!form[key]) {
+        nextErrors[key] = true;
+      }
     });
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
   const handleSubmit = () => {
     if (!validate()) return;
 
-    const roleIds = form.role ? [Number(form.role)] : [];
+    const payload = {
+      firstName: form.firstName,
+      lastName: form.lastName,
+      email: form.email,
+      uid: form.uid,
+      role: form.role,
+      role_ids: form.role ? [Number(form.role)] : [],
+    };
 
-    onSubmit
-      ? onSubmit({
-          firstName: form.firstName,
-          lastName: form.lastName,
-          email: form.email,
-          uid: form.uid,
-          role: form.role,
-          role_ids: roleIds,
-        })
-      : alert("Form submitted:\n" + JSON.stringify(form, null, 2));
+    if (onSubmit) {
+      onSubmit(payload);
+      return;
+    }
+
+    alert("Form submitted:\n" + JSON.stringify(payload, null, 2));
   };
 
   const handleCancel = () => {
-    cancelScan();
     setForm(INITIAL_STATE);
     setErrors({});
     onCancel?.();
   };
-
-  // ── Render ──────────────────────────────────────────────────────────────────
-
-  const ui = ScanStates[scanState];
-  const isScanning = scanState === "scanning";
 
   return (
     <div className="container py-4">
@@ -259,7 +98,6 @@ export default function UserForm({ onSubmit, onCancel, wsUrl = ESP32_WS_URL }) {
             <span className="chip chip--muted">New account</span>
           </div>
 
-          {/* ── Personal info ── */}
           <p className="text-uppercase text-secondary small fw-semibold mb-3">
             Personal info
           </p>
@@ -286,7 +124,7 @@ export default function UserForm({ onSubmit, onCancel, wsUrl = ESP32_WS_URL }) {
               error={errors.lastName}
               className="col-md-6"
               required={true}
-            />{" "}
+            />
           </div>
 
           <div className="mb-3">
@@ -303,26 +141,22 @@ export default function UserForm({ onSubmit, onCancel, wsUrl = ESP32_WS_URL }) {
             />
           </div>
 
-          {/* ── UID with RFID scan ── */}
-          <UIDInput
-            label="UID"
-            name="uid"
-            value={form.uid}
-            onChange={handleChange}
-            error={errors.uid}
-            placeholder="Type manually or scan card →"
-            readOnly={isScanning}
-            onButtonClick={handleScanButton}
-            buttonLabel={ui.btnLabel}
-            buttonIcon={ui.icon}
-            buttonClass={ui.btnClass}
-            alertClass={ui.alertClass}
-            alertMsg={ui.alertMsg}
-          />
+          <div className="mb-3">
+            <FormInput
+              label="Card UID"
+              name="uid"
+              type="text"
+              placeholder="Enter the card UID"
+              value={form.uid}
+              onChange={handleChange}
+              error={errors.uid}
+              className="col-12"
+              required={true}
+            />
+          </div>
 
           <hr className="my-4" />
 
-          {/* ── Access & permissions ── */}
           <p className="text-uppercase text-secondary small fw-semibold mb-3">
             Access &amp; permissions
           </p>
@@ -341,34 +175,11 @@ export default function UserForm({ onSubmit, onCancel, wsUrl = ESP32_WS_URL }) {
                       value: String(role.id),
                       label: role.name,
                     }))
-                  : [
-                      { value: "", label: "No roles available" },
-                    ]
+                  : [{ value: "", label: "No roles available" }]
               }
-              renderExtra={() =>
-                form.role && roleOptions.length ? (
-                  <Badge meta={{ label: roleOptions.find((role) => String(role.id) === form.role)?.name ?? "Role", badgeClass: "text-bg-primary" }} />
-                ) : null
-              }
-            />
-
-            <SelectInput
-              label="Status"
-              name="status"
-              value={form.status}
-              onChange={handleChange}
-              error={errors.status}
-              placeholder="Select a status…"
-              options={[
-                { value: "AUTHORISED", label: "Authorised" },
-                { value: "UNAUTHORIZED", label: "Unauthorized" },
-                { value: "BLACKLISTED", label: "Blacklisted" },
-              ]}
-              renderExtra={() => <Badge meta={STATUS_META[form.status]} />}
             />
           </div>
 
-          {/* ── Actions ── */}
           <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
             <button
               type="button"
