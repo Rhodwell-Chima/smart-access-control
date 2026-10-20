@@ -10,6 +10,46 @@ const EMPTY_ROLE_FORM = {
   description: "",
 };
 
+const asId = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const numeric = Number(trimmed);
+    return Number.isFinite(numeric) ? numeric : null;
+  }
+
+  if (typeof value === "object") {
+    return asId(value.id ?? value.access_point_id ?? value.accessPointId ?? value.value ?? value.name);
+  }
+
+  return null;
+};
+
+const normalizeAccessPointIds = (items = []) => {
+  const ids = [];
+
+  items.forEach((item) => {
+    if (Array.isArray(item)) {
+      normalizeAccessPointIds(item).forEach((id) => ids.push(id));
+      return;
+    }
+
+    const id = asId(item);
+    if (id !== null) {
+      ids.push(id);
+    }
+  });
+
+  return [...new Set(ids)];
+};
+
 export default function RolesAccessPoints() {
   const [roles, setRoles] = useState([]);
   const [accessPoints, setAccessPoints] = useState([]);
@@ -25,6 +65,11 @@ export default function RolesAccessPoints() {
   const selectedRole = useMemo(
     () => roles.find((role) => role.id === selectedRoleId) ?? null,
     [roles, selectedRoleId],
+  );
+
+  const selectedRoleAccessIds = useMemo(
+    () => normalizeAccessPointIds(selectedRole?.access_points ?? selectedRole?.accessPoints ?? []),
+    [selectedRole],
   );
 
   const filteredRoles = useMemo(() => {
@@ -56,10 +101,18 @@ export default function RolesAccessPoints() {
 
         if (!active) return;
 
-        setRoles(rolesResponse.roles);
-        setAccessPoints(accessPointsResponse.accessPoints);
-        if (rolesResponse.roles.length) {
-          setSelectedRoleId(rolesResponse.roles[0].id);
+        const nextRoles = Array.isArray(rolesResponse.roles) ? rolesResponse.roles : [];
+        const nextAccessPoints = Array.isArray(accessPointsResponse.accessPoints)
+          ? accessPointsResponse.accessPoints
+          : [];
+
+        setRoles(nextRoles);
+        setAccessPoints(nextAccessPoints);
+
+        if (nextRoles.length) {
+          setSelectedRoleId((current) => current ?? nextRoles[0].id);
+        } else {
+          setSelectedRoleId(null);
         }
       } catch (requestError) {
         if (active) {
@@ -88,8 +141,8 @@ export default function RolesAccessPoints() {
       name: selectedRole.name ?? "",
       description: selectedRole.description ?? "",
     });
-    setSelectedAccessPointIds((selectedRole.access_points ?? []).map((point) => point.id));
-  }, [selectedRole]);
+    setSelectedAccessPointIds(selectedRoleAccessIds);
+  }, [selectedRole, selectedRoleAccessIds]);
 
   const refreshData = async () => {
     const [rolesResponse, accessPointsResponse] = await Promise.all([
@@ -97,16 +150,19 @@ export default function RolesAccessPoints() {
       adminApi.getAccessPoints(),
     ]);
 
-    setRoles(rolesResponse.roles);
-    setAccessPoints(accessPointsResponse.accessPoints);
+    const nextRoles = Array.isArray(rolesResponse.roles) ? rolesResponse.roles : [];
+    const nextAccessPoints = Array.isArray(accessPointsResponse.accessPoints) ? accessPointsResponse.accessPoints : [];
 
-    if (!rolesResponse.roles.length) {
+    setRoles(nextRoles);
+    setAccessPoints(nextAccessPoints);
+
+    if (!nextRoles.length) {
       setSelectedRoleId(null);
       return;
     }
 
-    if (!rolesResponse.roles.some((role) => role.id === selectedRoleId)) {
-      setSelectedRoleId(rolesResponse.roles[0].id);
+    if (!nextRoles.some((role) => role.id === selectedRoleId)) {
+      setSelectedRoleId(nextRoles[0].id);
     }
   };
 
@@ -116,10 +172,13 @@ export default function RolesAccessPoints() {
   };
 
   const handleAccessPointToggle = (accessPointId) => {
+    const nextValue = Number(accessPointId);
+    const normalizedValue = Number.isFinite(nextValue) ? nextValue : accessPointId;
+
     setSelectedAccessPointIds((current) =>
-      current.includes(accessPointId)
-        ? current.filter((id) => id !== accessPointId)
-        : [...current, accessPointId],
+      current.includes(normalizedValue)
+        ? current.filter((id) => id !== normalizedValue)
+        : [...current, normalizedValue],
     );
   };
 
@@ -158,7 +217,7 @@ export default function RolesAccessPoints() {
     setStatusMessage("");
 
     try {
-      const currentAccessPointIds = new Set((selectedRole.access_points ?? []).map((point) => point.id));
+      const currentAccessPointIds = new Set(selectedRoleAccessIds);
       const nextAccessPointIds = new Set(selectedAccessPointIds);
       const attachIds = [...nextAccessPointIds].filter((id) => !currentAccessPointIds.has(id));
       const detachIds = [...currentAccessPointIds].filter((id) => !nextAccessPointIds.has(id));
@@ -240,7 +299,7 @@ export default function RolesAccessPoints() {
             </div>
             <div className="admin-summary-card">
               <span>Linked points</span>
-              <strong>{selectedRole?.access_points?.length ?? 0}</strong>
+              <strong>{selectedRoleAccessIds.length}</strong>
             </div>
           </div>
 
@@ -270,33 +329,37 @@ export default function RolesAccessPoints() {
 
                 <div className="role-list">
                   {filteredRoles.length ? (
-                    filteredRoles.map((role) => (
-                      <button
-                        key={role.id}
-                        type="button"
-                        className={`role-card ${selectedRoleId === role.id ? "role-card--active" : ""}`}
-                        onClick={() => setSelectedRoleId(role.id)}
-                      >
-                        <div className="d-flex justify-content-between gap-3 align-items-start">
-                          <div>
-                            <strong>{role.name}</strong>
-                            <p>{role.description || "No description provided."}</p>
+                    filteredRoles.map((role) => {
+                      const rolePointIds = normalizeAccessPointIds(role.access_points ?? role.accessPoints ?? []);
+
+                      return (
+                        <button
+                          key={role.id}
+                          type="button"
+                          className={`role-card ${selectedRoleId === role.id ? "role-card--active" : ""}`}
+                          onClick={() => setSelectedRoleId(role.id)}
+                        >
+                          <div className="d-flex justify-content-between gap-3 align-items-start">
+                            <div>
+                              <strong>{role.name}</strong>
+                              <p>{role.description || "No description provided."}</p>
+                            </div>
+                            <span className="badge text-bg-dark">v{role.version ?? "-"}</span>
                           </div>
-                          <span className="badge text-bg-dark">v{role.version ?? "-"}</span>
-                        </div>
-                        <div className="mt-3 d-flex flex-wrap gap-2">
-                          {(role.access_points ?? []).length ? (
-                            role.access_points.map((point) => (
-                              <span key={`${role.id}-${point.id ?? point.name}`} className="chip">
-                                {point.name ?? point}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="chip chip--muted">No access points assigned</span>
-                          )}
-                        </div>
-                      </button>
-                    ))
+                          <div className="mt-3 d-flex flex-wrap gap-2">
+                            {rolePointIds.length ? (
+                              rolePointIds.map((pointId) => (
+                                <span key={`${role.id}-${pointId}`} className="chip">
+                                  {accessPoints.find((point) => Number(point.id) === Number(pointId))?.name ?? `Point ${pointId}`}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="chip chip--muted">No access points assigned</span>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })
                   ) : (
                     <div className="text-center py-5 text-secondary">
                       {loading ? "Loading roles..." : "No roles match the current search."}
@@ -366,7 +429,8 @@ export default function RolesAccessPoints() {
                     <div className="access-point-checkbox-grid">
                       {accessPoints.length ? (
                         accessPoints.map((point) => {
-                          const isSelected = selectedAccessPointIds.includes(point.id);
+                          const pointId = Number(point.id);
+                          const isSelected = selectedAccessPointIds.some((id) => Number(id) === pointId);
 
                           return (
                             <label
