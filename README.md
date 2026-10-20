@@ -1,16 +1,109 @@
-# React + Vite
+# Smart Access Control Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A React + Vite admin dashboard for managing access control operations, users, roles, access points, and audit logs.
 
-Currently, two official plugins are available:
+This frontend integrates with the Django REST Framework backend for the Smart Access Control system and uses a modern admin-console layout with protected routes and a secure login flow.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features implemented
 
-## React Compiler
+- Dashboard overview with summary cards and recent access activity
+- User management with search, activation/deactivation, and delete workflows
+- Role and access point management with assignment mapping
+- Log viewer with pagination and date-based filtering
+- Status badges for access events and admin actions
+- Modern dark admin UI consistent across all pages
+- Protected routes that require authentication
+- Admin-only login flow with approved credentials
+- Session-based login state with visible admin indicator and logout
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Tech stack
 
-## Expanding the ESLint configuration
+- React 19
+- Vite
+- Bootstrap 5
+- React Router
+- Axios
+- Custom CSS admin design system
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Current authentication setup
+
+The app currently uses a restricted admin login flow.
+
+Approved credentials:
+
+- Email: Regaclipbeats@gmail.com
+- Password: 12345678
+
+Only this account can access the protected application pages. All non-login routes are protected and redirect unauthenticated users back to the sign-in screen.
+
+## Route protection
+
+The app guards these routes:
+
+- /dashboard
+- /logs
+- /users
+- /users/new
+- /users/:userId/edit
+- /roles
+- /home
+- /add
+- /update
+- /delete
+
+Unauthenticated users are redirected to /.
+
+## API integration
+
+The frontend is designed around the backend API contract for:
+
+- health checks
+- metrics summary
+- users
+- roles
+- access points
+- logs
+- admin actions
+
+The API layer is centralized in src/utils/api.js and normalizes backend responses to support the UI reliably.
+
+## Project structure
+
+- src/App.jsx — dashboard overview
+- src/main.jsx — router and protected route configuration
+- src/routes — page-level views for logs, users, roles, and sign-in
+- src/components — shared UI components
+- src/utils/api.js — API wrapper and request handling
+- src/utils/auth.js — session validation and persistence
+- src/App.css — global dashboard/admin styling
+- src/signin.css — login screen styling
+
+## Running locally
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Start the dev server:
+
+```bash
+npm run dev
+```
+
+Build for production:
+
+```bash
+npm run build
+```
+
+## Notes
+
+- This project currently uses a hardcoded admin credential for local development and controlled access.
+- The backend auth contract can later be swapped in without changing the UI flow.
+- The login and app shell were intentionally designed to match the same modern admin UX language used throughout the interface.
+
+## Status
+
+The frontend is in a functional admin dashboard state with route protection, live API-backed sections, polished layout, and a working local auth gate for the approved admin account.
