@@ -197,7 +197,7 @@ export default function UserAdminConsole({ title, description }) {
 
       <div className="admin-panel-grid">
         <div className="admin-panel-column">
-          <div className="card-panel admin-card h-100">
+          <div className="card-panel admin-card h-100 user-panel-card">
             <div className="card-body">
               <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
                 <div>
@@ -221,7 +221,7 @@ export default function UserAdminConsole({ title, description }) {
                 </div>
               </div>
 
-              <div className="table-responsive">
+              <div className="table-responsive user-table-shell">
                 <table className="table table-hover align-middle mb-0">
                   <thead>
                     <tr>
@@ -308,7 +308,7 @@ export default function UserAdminConsole({ title, description }) {
         </div>
 
         <div className="admin-panel-column">
-          <div className="card-panel admin-card h-100">
+          <div className="card-panel admin-card h-100 user-edit-panel">
             <div className="card-body">
               <h5 className="card-title mb-1">Edit user</h5>
               <p className="text-secondary small mb-4">
