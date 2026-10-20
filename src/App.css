@@ -400,6 +400,7 @@ select {
 
 .admin-panel-column {
   min-width: 0;
+  display: flex;
 }
 
 .admin-card {
@@ -407,10 +408,45 @@ select {
   border: 1px solid rgba(148, 163, 184, 0.14);
   border-radius: 22px;
   overflow: hidden;
+  width: 100%;
 }
 
 .admin-card .card-body {
   padding: 20px;
+}
+
+.user-panel-card,
+.user-edit-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-table-shell {
+  max-height: 560px;
+  overflow: auto;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(2, 6, 23, 0.3);
+}
+
+.user-table-shell .table {
+  margin-bottom: 0;
+  min-width: 620px;
+}
+
+.user-table-shell td:nth-child(2),
+.user-table-shell td:first-child {
+  overflow-wrap: anywhere;
+}
+
+.user-table-shell td:last-child {
+  white-space: nowrap;
+}
+
+.user-edit-panel .card-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .admin-card .card-title {
